@@ -31,7 +31,7 @@ if st.button("Generate Fantastic Video"):
             tts.save(voice_path)
 
             # 2. Generate base video clip using Hugging Face free inference API
-            api_url = "https://api-inference.huggingface.co/models/cerspense/zeroscope_v2_576w"
+            api_url = "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope_v2_576w"
             headers = {"Authorization": f"Bearer {st.secrets['HF_TOKEN']}"}
             
             payload = {"inputs": prompt}
