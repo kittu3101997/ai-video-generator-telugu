@@ -1,9 +1,13 @@
 import streamlit as st
 import requests
 from gtts import gTTS
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeAudioClip
+from moviepy.video.io.VideoFileClip import VideoFileClip
+from moviepy.audio.io.AudioFileClip import AudioFileClip
+from moviepy.video.compositing.concatenate import concatenate_videoclips
+from moviepy.audio.CompositeAudioClip import CompositeAudioClip
 import os
 import tempfile
+
 
 st.title("AI Video Generator by Krishna Rao")
 st.markdown("Enter a prompt, choose voice options, duration, and get a viral-ready video with AI visuals, voiceover, and music!")
