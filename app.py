@@ -5,7 +5,7 @@ from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips, Compos
 import os
 import tempfile
 
-st.title("AI Video Generator by Krishna Rao")
+st.title("AI Video Generator by Krishna")
 st.markdown("Create short viral videos! Enter prompt → choose voice (English/Telugu) → select duration → get video with AI visuals, voiceover & music 🚀")
 
 # User inputs
