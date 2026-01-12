@@ -1,44 +1,80 @@
 import streamlit as st
 import requests
-from gtts import gTTS
-from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeAudioClip
 import os
 import tempfile
+import time
+from gtts import gTTS
+from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeAudioClip
 
-st.title("AI Video Generator by Krishna")
-st.markdown("Create short viral videos! Enter prompt → choose voice (English/Telugu) → select duration → get video with AI visuals, voiceover & music 🚀")
+st.set_page_config(page_title="AI Short Video Generator", layout="wide")
 
-# User inputs
-prompt = st.text_input("Enter your video prompt", 
-                       placeholder="e.g., 'A futuristic city at night' or 'అందమైన తెలుగు గ్రామం సూర్యోదయం'")
+st.title("AI Short Video Generator – Krishna Rao 🚀")
+st.markdown("""
+Create viral-ready short videos instantly!  
+Enter your prompt → choose language → select duration → get AI-generated video with voiceover & music.  
+**100% free to use** (powered by free-tier Hugging Face Inference)
+""")
 
-language_choice = st.selectbox("Voice Language", ["English", "Telugu"])
-gender = st.selectbox("Voice Gender (note: gTTS uses default tone)", ["Male", "Female"])
-seconds = st.slider("Video duration (seconds)", min_value=5, max_value=30, value=10)
+# ── User inputs ───────────────────────────────────────────────────────────────
+col1, col2 = st.columns([3, 1])
 
-# Language mapping
+with col1:
+    prompt = st.text_area(
+        "Video Prompt (English or Telugu)",
+        height=100,
+        placeholder="Examples:\nA beautiful sunrise over a Telugu village\nఅందమైన తెలుగు గ్రామంలో సూర్యోదయం",
+        key="prompt"
+    )
+
+with col2:
+    language_choice = st.selectbox("Voice Language", ["English", "Telugu"], index=0)
+    duration = st.slider("Duration (seconds)", 5, 30, 10, step=5)
+
+# Language settings
 lang_code = 'en' if language_choice == "English" else 'te'
 tld = 'co.in' if language_choice == "English" else 'com'  # Indian accent for English
 
-if st.button("Generate Fantastic Video"):
+# Generate button
+if st.button("✨ Generate Fantastic Video", type="primary", use_container_width=True):
 
-    with st.spinner("Generating AI magic... (1-3 minutes depending on queue)"):
+    if not prompt.strip():
+        st.error("Please enter a prompt first!")
+        st.stop()
+
+    with st.spinner("Generating AI video... (1–5 minutes depending on queue)"):
         try:
-            # 1. Generate voiceover
-            narration_text = prompt
-            tts = gTTS(text=narration_text, lang=lang_code, tld=tld, slow=False)
+            # ── 1. Voiceover ──────────────────────────────────────────────────────
+            tts = gTTS(text=prompt, lang=lang_code, tld=tld, slow=False)
             voice_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
             tts.save(voice_path)
 
-            # 2. Generate base video clip using Hugging Face free inference API
-            api_url = "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope_v2_576w"
-            headers = {"Authorization": f"Bearer {st.secrets['HF_TOKEN']}"}
-            
-            payload = {"inputs": prompt}
-            response = requests.post(api_url, headers=headers, json=payload)
+            # ── 2. Text-to-Video using updated 2026 Hugging Face Router ──────────
+            # Recommended model: damo-vilab/text-to-video-ms-1.7b (most reliable classic)
+            # Alternative models you can try: "cerspense/zeroscope_v2_576w", "hotshot-xl/hotshot-xl"
+            api_url = "https://router.huggingface.co/hf-inference/models/damo-vilab/text-to-video-ms-1.7b"
+
+            headers = {
+                "Authorization": f"Bearer {st.secrets['HF_TOKEN']}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "inputs": prompt,
+                "parameters": {
+                    "num_frames": 24,           # ~3-4 second base clip
+                    "num_inference_steps": 25,
+                    "height": 320,
+                    "width": 576,
+                    "guidance_scale": 7.5
+                }
+            }
+
+            response = requests.post(api_url, headers=headers, json=payload, timeout=180)
 
             if response.status_code != 200:
-                st.error(f"Hugging Face API error: {response.status_code} - {response.text[:200]}")
+                error_text = response.text[:400]
+                st.error(f"Hugging Face API Error {response.status_code}:\n{error_text}")
+                st.info("Common fixes:\n• Check your HF_TOKEN in secrets\n• Wait 1-2 min (free tier queue)\n• Try simpler prompt")
                 st.stop()
 
             video_bytes = response.content
@@ -46,60 +82,66 @@ if st.button("Generate Fantastic Video"):
             with open(video_path, "wb") as f:
                 f.write(video_bytes)
 
-            # 3. Load and extend video to desired length
-            base_video = VideoFileClip(video_path)
-            if base_video.duration == 0:
+            # ── 3. Load & extend video to desired duration ───────────────────────
+            base_clip = VideoFileClip(video_path)
+
+            if base_clip.duration <= 0:
                 st.error("Generated video clip has zero duration. Try a different prompt.")
                 st.stop()
 
-            # Simple looping to reach desired length
-            loop_count = max(1, int(seconds / base_video.duration) + 2)
-            extended_clips = [base_video] * loop_count
-            extended_video = concatenate_videoclips(extended_clips).subclip(0, seconds)
+            # Loop the clip enough times to exceed requested duration, then cut
+            loops_needed = int(duration / base_clip.duration) + 2
+            extended = concatenate_videoclips([base_clip] * loops_needed)
+            extended = extended.subclip(0, duration)
 
-            # 4. Prepare audio
+            # ── 4. Prepare audio ─────────────────────────────────────────────────
             voice_audio = AudioFileClip(voice_path)
-            if voice_audio.duration > seconds:
-                voice_audio = voice_audio.subclip(0, seconds)
+            if voice_audio.duration > duration:
+                voice_audio = voice_audio.subclip(0, duration)
 
-            # 5. Add free background music (royalty-free upbeat track)
+            # Free upbeat royalty-free music (Bensound - commercial safe)
             music_url = "https://www.bensound.com/bensound-music/bensound-ukulele.mp3"
-            music_response = requests.get(music_url)
-            music_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
-            with open(music_path, "wb") as f:
-                f.write(music_response.content)
+            music_bytes = requests.get(music_url, timeout=15).content
+            music_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+            with open(music_temp, "wb") as f:
+                f.write(music_bytes)
 
-            music_audio = AudioFileClip(music_path).subclip(0, seconds).volumex(0.3)  # background volume
+            music_audio = AudioFileClip(music_temp).subclip(0, duration).volumex(0.3)
 
-            # Combine voice + music
-            combined_audio = CompositeAudioClip([voice_audio.set_start(0), music_audio.set_start(0)])
+            # Combine
+            final_audio = CompositeAudioClip([voice_audio.set_start(0), music_audio.set_start(0)])
 
-            # 6. Final video
-            final_video = extended_video.set_audio(combined_audio)
-            final_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+            # ── 5. Final video ───────────────────────────────────────────────────
+            final_video = extended.set_audio(final_audio)
+
+            final_path = "generated_viral_video.mp4"
             final_video.write_videofile(final_path, codec="libx264", audio_codec="aac", logger=None)
 
             # Cleanup temporary files
-            for path in [voice_path, video_path, music_path]:
+            for path in [voice_path, video_path, music_temp]:
                 if os.path.exists(path):
-                    os.unlink(path)
+                    try:
+                        os.unlink(path)
+                    except:
+                        pass
 
-            # Show success
-            st.success("Video generated successfully! 🎉")
+            # ── Success ──────────────────────────────────────────────────────────
+            st.success("Your video is ready! 🎉")
             st.video(final_path)
 
-            # Download button
             with open(final_path, "rb") as f:
                 st.download_button(
-                    label="Download Video",
+                    label="Download Video (MP4)",
                     data=f,
-                    file_name="viral_ai_video.mp4",
-                    mime="video/mp4"
+                    file_name="krishna_ai_viral_video.mp4",
+                    mime="video/mp4",
+                    use_container_width=True
                 )
 
-            # Final cleanup
-            os.unlink(final_path)
-
         except Exception as e:
-            st.error(f"Something went wrong: {str(e)}")
-            st.info("Common fixes: Check HF_TOKEN in secrets, try simpler prompt, or wait 1-2 min (free API queue)")
+            st.error(f"Unexpected error occurred:\n{str(e)}")
+            st.info("Tips:\n• Make sure HF_TOKEN is correctly set in Streamlit secrets\n• Try shorter / simpler prompt\n• Wait a few minutes and retry")
+
+# Footer
+st.markdown("---")
+st.caption("Powered by Hugging Face Inference Router • gTTS • MoviePy • 100% free tier • Built for viral Telugu & English content • January 2026")
