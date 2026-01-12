@@ -51,9 +51,7 @@ if st.button("✨ Generate Fantastic Video", type="primary", use_container_width
             # ── 2. Text-to-Video using updated 2026 Hugging Face Router ──────────
             # Recommended model: damo-vilab/text-to-video-ms-1.7b (most reliable classic)
             # Alternative models you can try: "cerspense/zeroscope_v2_576w", "hotshot-xl/hotshot-xl"
-            #api_url = "https://router.huggingface.co/hf-inference/models/tencent/HunyuanVideo"
-            # OR
-           api_url = "https://router.huggingface.co/hf-inference/models/Lightricks/LTX-Video"
+            api_url = "https://router.huggingface.co/hf-inference/models/Lightricks/LTX-Video"
 
             headers = {
                 "Authorization": f"Bearer {st.secrets['HF_TOKEN']}",
